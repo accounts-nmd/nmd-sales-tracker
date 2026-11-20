@@ -651,7 +651,7 @@ function monthSales(fy, sp) {
   const tot = sum(rows), tq = qtyOf(rows);
   const th = (k, t, n) => `<th class="sort${n ? ' n' : ''}" data-ms="${k}">${t}${M.sort === k ? (M.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
   return `<section class="card" id="msCard"><div class="hd"><h2>Sales data · ${sp.label}</h2><span class="note">${fQ(rows.length)} of ${fQ(all.length)} lines · value in ₹</span>
-  <span class="sp row"><input type="search" id="msq" placeholder="Search invoice, customer, part, category" value="${esc(M.q)}" aria-label="Search month sales"><button class="btn" id="msCsv">Download CSV</button></span></div>
+  <span class="sp row"><input type="search" id="msq" placeholder="Search invoice, customer, part, category" value="${esc(M.q)}" aria-label="Search month sales"><button class="btn" id="msCsv">Export to Excel</button></span></div>
   <div class="tbl-wrap" style="max-height:640px;overflow:auto"><table><thead><tr>${th('t', 'Date')}${th('inv', 'Invoice no.')}${th('cust', 'Customer')}${th('part', 'Part')}<th>Description</th>${th('pc', 'Category')}${th('qty', 'Qty', 1)}${th('rate', 'Rate ₹', 1)}${th('amt', 'Value ₹', 1)}</tr></thead>
   <tbody>${rows.slice(0, M.n).map(r => `<tr><td>${fD(r.t)}</td><td class="mono">${esc(r.inv)}</td><td class="wrap-t" style="min-width:180px">${esc(r.cust)}</td><td class="mono">${esc(r.part)}</td><td class="wrap-t">${esc(r.desc)}</td><td>${esc(r.pc)}</td><td class="n">${fQ(r.qty)}</td><td class="n">${r.qty ? nf2.format(r.amt / r.qty) : '–'}</td><td class="n"><b>${nf0.format(r.amt)}</b></td></tr>`).join('') || '<tr><td colspan="9" class="empty">No lines match</td></tr>'}</tbody>
   <tfoot><tr><td colspan="6">Total · ${fQ(rows.length)} lines · ${new Set(rows.map(r => r.inv)).size} invoices</td><td class="n">${fQ(rows.reduce((a, r) => a + r.qty, 0))}</td><td></td><td class="n">${nf0.format(tot)}</td></tr></tfoot></table></div>
@@ -725,8 +725,8 @@ function lyO(fy, o) { const pf = prevFY(fy); if (!pf) return null; const d = new
 function dayTarget(fy, o, T = tgt(fy)) { if (!T) return null; const d = new Date(oT(fy, o)); if (d.getUTCDay() === 0) return 0; const m = fm(d.getUTCMonth()); return T[m] ? T[m] / workDays(fy, m, 1, daysIn(fy, m)) : 0; }
 function rangeTarget(fy, a, b, T = tgt(fy)) { if (!T) return null; let s = 0; for (let o = a; o <= b; o++) s += dayTarget(fy, o, T); return s; }
 const dLabel = (fy, a, b) => a === b ? fD(oT(fy, a)) : fD(oT(fy, a)) + ' – ' + fD(oT(fy, b));
-function dSpec(fy, a, b) { return { pred: r => r.o >= a && r.o <= b, label: dLabel(fy, a, b), fname: `NMD_sales_${o2iso(fy, a)}${a === b ? '' : '_to_' + o2iso(fy, b)}.csv` }; }
-function mSpec(fy, m) { return { pred: r => r.m === m, label: mLabel(fy, m), fname: `NMD_sales_${MON[m]}_${mInfo(fy, m).y}.csv` }; }
+function dSpec(fy, a, b) { return { pred: r => r.o >= a && r.o <= b, label: dLabel(fy, a, b), fname: `NMD_sales_${o2iso(fy, a)}${a === b ? '' : '_to_' + o2iso(fy, b)}.xlsx` }; }
+function mSpec(fy, m) { return { pred: r => r.m === m, label: mLabel(fy, m), fname: `NMD_sales_${MON[m]}_${mInfo(fy, m).y}.xlsx` }; }
 
 function dateTiles(fy, a, b) {
   const pf = prevFY(fy), rows = filt(fy).filter(r => r.o >= a && r.o <= b), tot = sum(rows), tg = rangeTarget(fy, a, b);
@@ -845,14 +845,14 @@ function vMonthly() {
   const qs = [0, 1, 2, 3].map(q => { const a = cur.slice(q * 3, q * 3 + 3).reduce((x, y) => x + y, 0), t = T ? T.slice(q * 3, q * 3 + 3).reduce((x, y) => x + (y || 0), 0) : null, part = !c.closed && c.cm >= q * 3 && c.cm < q * 3 + 3, src = part ? prevSP : prev, p = src ? src.slice(q * 3, q * 3 + 3).reduce((x, y) => x + y, 0) : null; return { a, t, p, part, future: !c.closed && c.cm < q * 3 }; });
   $('#main').innerHTML = `<div class="view">
   <section class="tiles">${qs.map((q, i) => `<div class="tile"><span class="lbl">Q${i + 1} · ${MON[i * 3]}–${MON[i * 3 + 2]}</span><span class="val">${q.a ? fLn(q.a) + uTag() : '–'}</span><span class="foot">${q.future ? (q.t ? 'Target ' + fL(q.t) : 'Not started') : `${q.t ? chipA(pct(q.a, q.t)) + ' of ' + fL(q.t) : ''} ${q.p && q.a ? chipG((q.a / q.p - 1) * 100) + (q.part ? ' vs LY same days' : ' vs LY') : ''}`}${q.part ? ' · in progress' : ''}</span></div>`).join('')}</section>
-  <section class="card"><div class="hd"><h2>Month-wise sales report · FY ${fy}</h2><span class="note">${UNIT.name}${T ? '' : ' · set targets in the Targets tab'}</span><span class="sp"><button class="btn" id="csvMonth">Download CSV</button></span></div>
+  <section class="card"><div class="hd"><h2>Month-wise sales report · FY ${fy}</h2><span class="note">${UNIT.name}${T ? '' : ' · set targets in the Targets tab'}</span><span class="sp"><button class="btn" id="csvMonth">Export to Excel</button></span></div>
   <div class="tbl-wrap"><table><thead><tr><th>Month</th><th class="n">ABP target</th><th class="n">Actual</th><th class="n">Achieved</th><th class="n">FY ${pf || '–'}</th><th class="n">Growth</th><th class="n">Cum. actual</th><th class="n">Cum. target</th><th class="n">Cum. ach.</th></tr></thead>
   <tbody>${body}</tbody><tfoot><tr><td>Total</td><td class="n">${annT ? fLn(annT) : '–'}</td><td class="n">${fLn(tot)}</td><td class="n">${annT ? fP(pct(tot, annT)) : ''}</td><td class="n">${prev ? fLn(prev.reduce((a, b) => a + b, 0)) : '–'}</td><td></td><td></td><td></td><td></td></tr></tfoot></table></div></section>
   ${qtyMonthTable(fy)}
   <section class="card"><div class="hd"><h2>Product category by month</h2><span class="note">${UNIT.name} · darker cells are larger</span></div>
   <div class="tbl-wrap heat"><table><thead><tr><th>Category</th>${MON.map(m => `<th class="n">${m}</th>`).join('')}<th class="n">Total</th></tr></thead><tbody>${heat}</tbody></table></div></section>
   </div>`;
-  $('#csvMonth').onclick = () => { const L2 = [['Month', 'ABP target', 'Actual', 'Achieved %', 'FY ' + (pf || ''), 'Growth %']]; for (let m = 0; m < 12; m++) L2.push([MON[m], T ? T[m] : '', cur[m].toFixed(2), T && T[m] ? (cur[m] / T[m] * 100).toFixed(1) : '', prev ? prev[m].toFixed(2) : '', prev && prev[m] ? ((cur[m] / prev[m] - 1) * 100).toFixed(1) : '']); download(`NMD_monthwise_${fy}.csv`, L2); };
+  $('#csvMonth').onclick = () => { const L2 = [['Month', 'ABP target', 'Actual', 'Achieved %', 'FY ' + (pf || ''), 'Growth %']]; for (let m = 0; m < 12; m++) L2.push([MON[m], T ? T[m] : '', cur[m].toFixed(2), T && T[m] ? (cur[m] / T[m] * 100).toFixed(1) : '', prev ? prev[m].toFixed(2) : '', prev && prev[m] ? ((cur[m] / prev[m] - 1) * 100).toFixed(1) : '']); download(`NMD_monthwise_${fy}.xlsx`, L2); };
 }
 
 function vCustomers() {
@@ -865,12 +865,16 @@ function vCustomers() {
   FYS.forEach(f => key['y' + f] = o => o.y[f] || 0);
   const kf = key[S.cust.sort] || key.cur; list.sort((a, b) => { const x = kf(a), y = kf(b); return (x > y ? 1 : x < y ? -1 : 0) * S.cust.dir; });
   const th = (k, t, n) => `<th class="sort${n ? ' n' : ''}" data-s="${k}">${t}${S.cust.sort === k ? (S.cust.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
-  $('#main').innerHTML = `<div class="view"><section class="card"><div class="hd"><h2>Customers</h2><span class="note">Sales by financial year, ${UNIT.name} · click a customer to see its invoices</span><span class="sp row"><input type="search" id="cq" placeholder="Search customer" value="${esc(S.cust.q)}" aria-label="Search customer"></span></div>
+  $('#main').innerHTML = `<div class="view"><section class="card"><div class="hd"><h2>Customers</h2><span class="note">Sales by financial year, ${UNIT.name} · click a customer to see its invoices</span><span class="sp row"><input type="search" id="cq" placeholder="Search customer" value="${esc(S.cust.q)}" aria-label="Search customer"><button class="btn" id="csvCust">Export to Excel</button></span></div>
   <div class="tbl-wrap"><table><thead><tr>${th('cust', 'Customer')}${th('cc', 'Group')}${FYS.slice().reverse().map(f => th('y' + f, 'FY ' + f, 1)).join('')}${th('cur', 'Share ' + S.fy, 1)}${th('g', 'Growth (same period)', 1)}</tr></thead>
   <tbody>${list.map(o => `<tr class="click" data-c="${esc(o.cust)}"><td class="wrap-t">${esc(o.cust)}</td><td>${esc(o.cc)}</td>${FYS.slice().reverse().map(f => `<td class="n${f === S.fy ? '' : ' muted'}">${o.y[f] ? (f === S.fy ? '<b>' + fLn(o.y[f]) + '</b>' : fLn(o.y[f])) : '–'}</td>`).join('')}<td class="n">${o.y[S.fy] ? fP(pct(o.y[S.fy], tot)) : '–'}</td><td class="n">${o.ytdLy ? chipG(((o.y[S.fy] || 0) / o.ytdLy - 1) * 100) : o.y[S.fy] ? '<span class="chip up">new</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">No customers match</td></tr>'}</tbody></table></div></section></div>`;
   $('#cq').oninput = e => { S.cust.q = e.target.value; const p = e.target.selectionStart; vCustomers(); const i = $('#cq'); i.focus(); i.setSelectionRange(p, p); };
   document.querySelectorAll('th[data-s]').forEach(t => t.onclick = () => { const k = t.dataset.s; if (S.cust.sort === k) S.cust.dir *= -1; else { S.cust.sort = k; S.cust.dir = (k === 'cust' || k === 'cc') ? 1 : -1; } vCustomers(); });
   document.querySelectorAll('tr[data-c]').forEach(t => t.onclick = () => { S.inv.cust = t.dataset.c; S.inv.q = ''; S.dm = null; go('invoices'); });
+  const yrs = FYS.slice().reverse();
+  $('#csvCust').onclick = () => download(`NMD_customers_${S.fy}.xlsx`, [['Customer', 'Customer group', ...yrs.map(f => 'FY ' + f + ' (₹)'), 'Share of FY ' + S.fy + ' %', 'FY ' + (pf || '') + ' same period (₹)', 'Growth %'],
+    ...list.map(o => [o.cust, o.cc, ...yrs.map(f => +(o.y[f] || 0).toFixed(2)), tot ? +((o.y[S.fy] || 0) / tot * 100).toFixed(2) : '', +o.ytdLy.toFixed(2), o.ytdLy ? +(((o.y[S.fy] || 0) / o.ytdLy - 1) * 100).toFixed(2) : '']),
+    ['Total', '', ...yrs.map(f => +list.reduce((a, o) => a + (o.y[f] || 0), 0).toFixed(2)), '', +list.reduce((a, o) => a + o.ytdLy, 0).toFixed(2), '']], null, 'Customers');
 }
 
 function vProducts() {
@@ -888,7 +892,7 @@ function vProducts() {
   const row = o => byCat ? `<tr><td>${esc(o.k)}</td><td class="n">${fQ(o.qty)}</td><td class="n">${o.n.size}</td><td class="n"><b>${fLn(o.amt)}</b></td><td class="n">${o.qty ? nf2.format(o.amt / o.qty) : '–'}</td><td class="n muted">${o.ly ? fLn(o.ly) : '–'}</td><td class="n">${o.ly ? chipG((o.amt / o.ly - 1) * 100) : o.amt ? '<span class="chip up">new</span>' : ''}</td></tr>`
     : `<tr><td class="mono">${esc(o.part)}</td><td class="wrap-t">${esc(o.desc)}</td><td>${esc(o.pc)}</td><td class="n">${fQ(o.qty)}</td><td class="n"><b>${fLn(o.amt)}</b></td><td class="n">${o.qty ? nf2.format(o.amt / o.qty) : '–'}</td><td class="n muted">${o.ly ? fLn(o.ly) : '–'}</td><td class="n">${o.ly ? chipG((o.amt / o.ly - 1) * 100) : o.amt ? '<span class="chip up">new</span>' : '<span class="chip dn">stopped</span>'}</td></tr>`;
   $('#main').innerHTML = `<div class="view"><section class="card"><div class="hd"><h2>Products · FY ${S.fy} to date</h2><span class="note">${list.length} ${byCat ? 'categories' : 'parts'} · compared with FY ${pf || '–'} up to the same date</span>
-  <span class="sp row"><div class="seg"><button data-by="part" aria-pressed="${!byCat}">By part</button><button data-by="cat" aria-pressed="${byCat}">By category</button></div><input type="search" id="pq" placeholder="Search part, description, category" value="${esc(P.q)}" aria-label="Search products"><button class="btn" id="csvProd">CSV</button></span></div>
+  <span class="sp row"><div class="seg"><button data-by="part" aria-pressed="${!byCat}">By part</button><button data-by="cat" aria-pressed="${byCat}">By category</button></div><input type="search" id="pq" placeholder="Search part, description, category" value="${esc(P.q)}" aria-label="Search products"><button class="btn" id="csvProd">Export to Excel</button></span></div>
   <div class="tbl-wrap"><table><thead><tr>${head}</tr></thead><tbody>${list.slice(0, P.n).map(row).join('') || '<tr><td colspan="8" class="empty">Nothing matches</td></tr>'}</tbody>
   <tfoot><tr><td colspan="${byCat ? 3 : 4}">Total (${list.length})</td><td class="n">${fLn(tot)}</td><td></td><td class="n muted">${fLn(lyt)}</td><td class="n">${lyt ? chipG((tot / lyt - 1) * 100) : ''}</td></tr></tfoot></table></div>
   ${list.length > P.n ? `<div class="more"><button class="btn" id="pmore">Show ${Math.min(150, list.length - P.n)} more of ${list.length - P.n}</button></div>` : ''}</section></div>`;
@@ -896,7 +900,7 @@ function vProducts() {
   document.querySelectorAll('[data-by]').forEach(b => b.onclick = () => { P.by = b.dataset.by; P.sort = 'amt'; P.dir = -1; vProducts(); });
   document.querySelectorAll('th[data-s]').forEach(t => t.onclick = () => { const k = t.dataset.s; if (P.sort === k) P.dir *= -1; else { P.sort = k; P.dir = ['k', 'desc', 'pc'].includes(k) ? 1 : -1; } vProducts(); });
   const pm = $('#pmore'); if (pm) pm.onclick = () => { P.n += 150; vProducts(); };
-  $('#csvProd').onclick = () => download(`NMD_products_${S.fy}.csv`, [byCat ? ['Category', 'Qty', 'Amount', 'LY same period'] : ['Part', 'Description', 'Category', 'Qty', 'Amount', 'Avg rate', 'LY same period'], ...list.map(o => byCat ? [o.k, o.qty, o.amt.toFixed(2), o.ly.toFixed(2)] : [o.part, o.desc, o.pc, o.qty, o.amt.toFixed(2), o.qty ? (o.amt / o.qty).toFixed(2) : '', o.ly.toFixed(2)])]);
+  $('#csvProd').onclick = () => download(`NMD_products_${S.fy}.xlsx`, [byCat ? ['Category', 'Qty', 'Amount', 'LY same period'] : ['Part', 'Description', 'Category', 'Qty', 'Amount', 'Avg rate', 'LY same period'], ...list.map(o => byCat ? [o.k, o.qty, o.amt.toFixed(2), o.ly.toFixed(2)] : [o.part, o.desc, o.pc, o.qty, o.amt.toFixed(2), o.qty ? (o.amt / o.qty).toFixed(2) : '', o.ly.toFixed(2)])]);
 }
 
 function vInvoices() {
@@ -915,7 +919,7 @@ function vInvoices() {
   <section class="card"><div class="hd"><h2>Invoice register · FY ${S.fy}</h2><span class="note">Click an invoice to see its lines</span>
   <span class="sp row"><select id="im" aria-label="Month"><option value="all">All months</option>${MON.map((m, i) => `<option value="${i}" ${i === S.dm ? 'selected' : ''}>${m}</option>`).join('')}</select>
   <select id="ic" aria-label="Customer" style="max-width:240px"><option value="all">All customers</option>${custs.map(c => `<option ${c === I.cust ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
-  <input type="search" id="iq" placeholder="Invoice no., part, customer" value="${esc(I.q)}" aria-label="Search invoices"><button class="btn" id="csvInv">CSV</button></span></div>
+  <input type="search" id="iq" placeholder="Invoice no., part, customer" value="${esc(I.q)}" aria-label="Search invoices"><button class="btn" id="csvInv">Export to Excel</button></span></div>
   <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Invoice no.</th><th>Customer</th><th class="n">Lines</th><th class="n">Qty</th><th class="n">Basic value</th></tr></thead><tbody>${body || '<tr><td colspan="6" class="empty">No invoices match these filters</td></tr>'}</tbody></table></div>
   ${list.length > I.n ? `<div class="more"><button class="btn" id="imore">Show more (${list.length - I.n} left)</button></div>` : ''}</section></div>`;
   $('#iq').oninput = e => { I.q = e.target.value; I.n = 100; const p = e.target.selectionStart; vInvoices(); const i = $('#iq'); i.focus(); i.setSelectionRange(p, p); };
@@ -923,7 +927,7 @@ function vInvoices() {
   $('#ic').onchange = e => { I.cust = e.target.value; I.n = 100; vInvoices(); };
   document.querySelectorAll('tr[data-k]').forEach(t => t.onclick = () => { const k = t.dataset.k; I.open.has(k) ? I.open.delete(k) : I.open.add(k); vInvoices(); });
   const im = $('#imore'); if (im) im.onclick = () => { I.n += 100; vInvoices(); };
-  $('#csvInv').onclick = () => download(`NMD_invoices_${S.fy}.csv`, [['Plant', 'Invoice No', 'Invoice Date', 'Customer', 'Part No', 'Description', 'Qty', 'Rate', 'Amount', 'Product Cat', 'Customer Cat'], ...rows.map(r => [r.plant, r.inv, new Date(r.t).toISOString().slice(0, 10), r.cust, r.part, r.desc, r.qty, r.qty ? (r.amt / r.qty).toFixed(2) : '', r.amt.toFixed(2), r.pc, r.cc])]);
+  $('#csvInv').onclick = () => download(`NMD_invoices_${S.fy}.xlsx`, [['Plant', 'Invoice No', 'Invoice Date', 'Customer', 'Part No', 'Description', 'Qty', 'Rate', 'Amount', 'Product Cat', 'Customer Cat'], ...rows.map(r => [r.plant, r.inv, new Date(r.t).toISOString().slice(0, 10), r.cust, r.part, r.desc, r.qty, r.qty ? (r.amt / r.qty).toFixed(2) : '', r.amt.toFixed(2), r.pc, r.cc])]);
 }
 
 function vTargets() {
@@ -960,7 +964,7 @@ function vData() {
   $('#main').innerHTML = `<div class="view">
   <section class="card"><div class="hd"><h2>Data in this tracker</h2><span class="note">NMD - 65 only · basic value before tax, all customers</span></div>
   <div class="tbl-wrap"><table><thead><tr><th>Year</th><th>Source</th><th class="n">Lines</th><th>Dates</th><th class="n">Total</th><th></th></tr></thead><tbody>${rowsHtml}</tbody></table></div></section>
-  <section class="card"><div class="hd"><h2>Upload the latest invoice register</h2><span class="note">The OTD file (.xlsx) with an "Invoice Register" or "Dispatch Report" sheet · app version 20-Nov-2026 FY23-24</span></div>
+  <section class="card"><div class="hd"><h2>Upload the latest invoice register</h2><span class="note">The OTD file (.xlsx) with an "Invoice Register" or "Dispatch Report" sheet · app version 20-Nov-2026 excel</span></div>
   <div class="grid32"><div style="display:grid;gap:12px">
   <label class="drop" id="drop" for="file"><b>Choose the OTD Excel file</b><br><span class="muted">or drop it here · the year is detected from invoice dates</span><input type="file" id="file" accept=".xlsx,.xlsm,.xls" hidden></label>
   <div id="up"></div></div>
@@ -1299,7 +1303,19 @@ function setPill() {
 }
 
 /* ---------- downloads ---------- */
-async function download(name, rows, raw) {
+async function download(name, rows, raw, sheetName) {
+  if (/\.xlsx$/i.test(name) && rows) {
+    if (!window.XLSX) { toast('The Excel writer did not load. Check your connection and reload.'); return; }
+    const conv = rows.map((r, i) => i === 0 ? r : r.map(v => typeof v === 'string' && v !== '' && /^-?\d+(\.\d+)?$/.test(v) ? +v : v));
+    const ws = XLSX.utils.aoa_to_sheet(conv);
+    ws['!cols'] = conv[0].map((h, c) => ({ wch: Math.min(60, Math.max(String(h).length, ...conv.slice(1, 200).map(r => String(r[c] ?? '').length)) + 2) }));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, (sheetName || 'Data').slice(0, 31));
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }), blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const dlx = window.claude && window.claude.use ? await claude.use('downloads') : null;
+    if (dlx) { try { await dlx.save({ filename: name, data: blob }); toast('Saved ' + name); } catch (e) { if (e && e.code !== 'declined') toast('Could not save the file (' + (e.code || 'error') + ').'); } return; }
+    try { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); toast('Saved ' + name); } catch (e) { toast('Downloads are not available in this view.'); }
+    return;
+  }
   const csv = raw != null ? raw : rows.map(r => r.map(v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\r\n');
   const dl = window.claude && window.claude.use ? await claude.use('downloads') : null;
   if (!dl) { try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([(raw != null ? '' : '\ufeff') + csv], { type: raw != null ? 'application/json' : 'text/csv' })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); toast('Saved ' + name); } catch (e) { toast('Downloads are not available in this view.'); } return; }
