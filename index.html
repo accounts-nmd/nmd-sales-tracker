@@ -309,6 +309,8 @@ body.signed-out main{min-height:100vh;display:flex;flex-direction:column;justify
 }
 .cv-mlogo{display:none;height:40px;width:auto;align-self:flex-start}
 @media (max-width:760px){.cv-mlogo{display:block}}
+body.u-act .tile .val{font-size:22px}body.u-act .tile.hero .val{font-size:30px}
+body.signed-out .useg{display:none}
 @keyframes ping{70%{box-shadow:0 0 0 9px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
 @keyframes float1{to{transform:translate(120px,60px)}}
 @keyframes float2{to{transform:translate(-140px,-80px)}}
@@ -322,7 +324,7 @@ body.signed-out main{min-height:100vh;display:flex;flex-direction:column;justify
       <h1>Sales Tracker</h1>
     </div>
     <div class="right">
-      <span class="pill role" id="rolePill" hidden></span><button class="btn" id="signOut" hidden style="padding:4px 11px">Sign out</button>
+      <div class="seg useg" role="group" aria-label="Units"><button data-u="L" aria-pressed="false">₹ Lakh</button><button data-u="C" aria-pressed="true">₹ Cr</button><button data-u="A" aria-pressed="false" title="Full rupee amounts">₹ Actual</button></div><span class="pill role" id="rolePill" hidden></span><button class="btn" id="signOut" hidden style="padding:4px 11px">Sign out</button>
       <span class="pill" id="srcPill"><span class="dot"></span><span id="srcTxt">Built-in data</span></span>
     </div>
   </div>
@@ -364,16 +366,19 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm = m0 => (m0 + 9) % 12; // calendar month (0=Jan) → fiscal index (0=Apr)
 const fyStart = fy => Date.UTC(+fy.slice(0, 4), 3, 1);
-const LK = { div: 1e5, s: 'L', name: '₹ Lakh' }, CR = { div: 1e7, s: 'Cr', name: '₹ Crore' };
+const LK = { div: 1e5, s: 'L', name: '₹ Lakh' }, CR = { div: 1e7, s: 'Cr', name: '₹ Crore' }, AC = { div: 1e5, s: '', name: '₹ (actual)' };
+const UNITS = { L: LK, C: CR, A: AC };
+const chartUnit = () => UNIT === AC ? '₹ Lakh' : UNIT.name;
+const uTag = (x = '') => UNIT === AC ? `<small>₹${x}</small>` : `<small>₹ ${UNIT.s}${x}</small>`;
 let UNIT = LK;
 const L = v => v / UNIT.div;
 const nf0 = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const nf2 = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const nf3 = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-const fLn = v => { if (v == null || isNaN(v)) return '–'; const x = L(v), a = Math.abs(x); if (UNIT === CR) return a >= 1000 ? nf0.format(x) : a >= 1 || a === 0 ? nf2.format(x) : nf3.format(x); return a >= 1000 ? nf0.format(x) : nf1.format(x); };
-const fL = v => v == null || isNaN(v) ? '–' : '₹' + fLn(v) + ' ' + UNIT.s;
-const fAx = v => UNIT === CR ? (v >= 10 || v === 0 ? nf0.format(v) : String(+v.toFixed(2))) : nf0.format(v);
+const fLn = v => { if (v == null || isNaN(v)) return '–'; if (UNIT === AC) return nf0.format(Math.round(v)); const x = L(v), a = Math.abs(x); if (UNIT === CR) return a >= 1000 ? nf0.format(x) : a >= 1 || a === 0 ? nf2.format(x) : nf3.format(x); return a >= 1000 ? nf0.format(x) : nf1.format(x); };
+const fL = v => v == null || isNaN(v) ? '–' : '₹' + fLn(v) + (UNIT === AC ? '' : ' ' + UNIT.s);
+const fAx = v => UNIT === AC ? nf0.format(v) + ' L' : UNIT === CR ? (v >= 10 || v === 0 ? nf0.format(v) : String(+v.toFixed(2))) : nf0.format(v);
 const fAlt = v => UNIT === CR ? '₹' + nf0.format(v / 1e5) + ' L' : '₹' + nf2.format(v / 1e7) + ' Cr';
 const fCr = v => '₹' + nf2.format(v / 1e7) + ' Cr';
 const fQ = v => nf0.format(v);
@@ -405,7 +410,8 @@ const QTGT = {}; ['2026-27', '2025-26', '2024-25'].forEach(f => QTGT[f] = new Ar
 function applyDefaultTargets() { const D = window.NMD_DEFAULTS; TARGETS = JSON.parse(JSON.stringify(ABP)); ['2026-27', '2025-26', '2024-25'].forEach(f => { QTGT[f] = new Array(12).fill(null); if (D && D.targets && Array.isArray(D.targets[f])) TARGETS[f] = D.targets[f].slice(); if (D && D.qty && Array.isArray(D.qty[f])) QTGT[f] = D.qty[f].slice(); }); }
 applyDefaultTargets();
 
-const S = { dr: null, dm: null, ms: { q: '', n: 200, sort: 't', dir: -1 }, fy: '2026-27', plant: PLANT, cc: 'All', core: true, view: 'dashboard',
+let SAVED_UNIT = 'C'; try { SAVED_UNIT = ['L', 'C', 'A'].includes(localStorage.getItem('nmdSalesUnit')) ? localStorage.getItem('nmdSalesUnit') : 'C'; } catch (e) {}
+const S = { unit: SAVED_UNIT, dr: null, dm: null, ms: { q: '', n: 200, sort: 't', dir: -1 }, fy: '2026-27', plant: PLANT, cc: 'All', core: true, view: 'dashboard',
   inv: { q: '', m: 'all', cust: 'all', n: 100, open: new Set() }, prod: { q: '', by: 'part', sort: 'amt', dir: -1, n: 150 }, cust: { q: '', sort: 'cur', dir: -1 } };
 try { const v = JSON.parse(localStorage.getItem('nmdSalesUI') || '{}'); Object.assign(S, { fy: FYS.includes(v.fy) ? v.fy : S.fy, cc: v.cc || S.cc, core: v.excl === undefined ? true : !!v.excl }); } catch (e) {}
 function saveUI() { try { localStorage.setItem('nmdSalesUI', JSON.stringify({ fy: S.fy, plant: S.plant, cc: S.cc, excl: S.core })); } catch (e) {} }
@@ -470,7 +476,7 @@ function monthlyChart(fy, sel = null) {
     s += `<rect data-tip="${m}" x="${x0}" y="${pad.t}" width="${iw}" height="${H - pad.t - pad.b}" fill="transparent"/>`;
   }
   s += `<line class="axis" x1="${pad.l}" x2="${W - pad.r}" y1="${H - pad.b}" y2="${H - pad.b}"/>`;
-  const leg = `<div class="legend"><span><i style="background:${FYCOL[fy]}"></i>FY ${fy}</span>${prev ? `<span><i style="background:${FYCOL[pf]}"></i>FY ${pf}</span>` : ''}${T ? '<span><i class="dash"></i>ABP target</span>' : ''}<span class="muted">${UNIT.name}</span></div>`;
+  const leg = `<div class="legend"><span><i style="background:${FYCOL[fy]}"></i>FY ${fy}</span>${prev ? `<span><i style="background:${FYCOL[pf]}"></i>FY ${pf}</span>` : ''}${T ? '<span><i class="dash"></i>ABP target</span>' : ''}<span class="muted">${chartUnit()}</span></div>`;
   return { html: leg + `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Monthly sales, FY ${fy}${prev ? ' vs ' + pf : ''}">${s}</svg>`,
     tip: k => { const m = +k; let h = `<b>${MON[m]} · FY ${fy}</b>` + tr(FYCOL[fy], 'Sales', fL(cur[m]));
       if (prev) h += tr(FYCOL[pf], 'FY ' + pf, fL(prev[m])) + tr('', 'Growth', fP(prev[m] ? (cur[m] / prev[m] - 1) * 100 : null));
@@ -495,13 +501,13 @@ function cumChart(fy, sel = null) {
     if (se.f === fy) s += `<polygon fill="${FYCOL[se.f]}" opacity=".10" points="${pts[0][0]},${H - pad.b} ${pts.map(p => p.join(',')).join(' ')} ${pts[pts.length - 1][0]},${H - pad.b}"/>`;
     s += `<polyline fill="none" stroke="${FYCOL[se.f]}" stroke-width="${w}" stroke-linejoin="round" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
     const lp = pts[pts.length - 1]; s += `<circle cx="${lp[0]}" cy="${lp[1]}" r="4" fill="${FYCOL[se.f]}" stroke="var(--panel)" stroke-width="2"/>`;
-    labels.push({ x: lp[0] + 8, y: lp[1] + 4, t: se.f + ' · ' + fLn(se.v[pts.length - 1]) });
+    labels.push({ x: lp[0] + 8, y: lp[1] + 4, t: se.f + ' · ' + (UNIT === AC ? nf0.format(L(se.v[pts.length - 1])) + ' L' : fLn(se.v[pts.length - 1])) });
   }
   labels.sort((a, b) => a.y - b.y); for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 13) labels[i].y = labels[i - 1].y + 13;
   for (const l of labels) s += `<text x="${Math.min(l.x, W - pad.r + 4)}" y="${l.y}" class="lab">${l.t}</text>`;
   for (let m = 0; m < 12; m++) s += `<rect data-tip="${m}" x="${sx(m) - iw / 2}" y="${pad.t}" width="${iw}" height="${H - pad.t - pad.b}" fill="transparent"/>`;
   s += `<line class="axis" x1="${pad.l}" x2="${W - pad.r}" y1="${H - pad.b}" y2="${H - pad.b}"/>`;
-  const leg = `<div class="legend">${FYS.map(f => `<span><i class="ln" style="background:${FYCOL[f]}"></i>FY ${f}</span>`).join('')}${tc ? `<span><i class="dash"></i>ABP ${fy}</span>` : ''}<span class="muted">${UNIT.name}, cumulative</span></div>`;
+  const leg = `<div class="legend">${FYS.map(f => `<span><i class="ln" style="background:${FYCOL[f]}"></i>FY ${f}</span>`).join('')}${tc ? `<span><i class="dash"></i>ABP ${fy}</span>` : ''}<span class="muted">${chartUnit()}, cumulative</span></div>`;
   return { html: leg + `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative sales by financial year">${s}</svg>`,
     tip: k => { const m = +k; let h = `<b>Apr – ${MON[m]} cumulative</b>`; for (const se of series) if (se.v[m] != null) h += tr(FYCOL[se.f], 'FY ' + se.f, fL(se.v[m])); if (tc) h += tr('', 'ABP ' + fy, fL(tc[m])); return h; } };
 }
@@ -529,7 +535,7 @@ function dailyChart(fy, m, hl = null) {
   }
   if (req) s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${sy(req)}" y2="${sy(req)}" stroke="var(--tgt)" stroke-width="1.5" stroke-dasharray="5 3"/>`;
   s += `<line class="axis" x1="${pad.l}" x2="${W - pad.r}" y1="${H - pad.b}" y2="${H - pad.b}"/>`;
-  const leg = `<div class="legend"><span><i style="background:${FYCOL[fy]}"></i>Daily sales</span>${req ? `<span><i class="dash"></i>Needed per working day (${fL(req)})</span>` : ''}<span class="muted">${UNIT.name} · dots mark Sundays</span></div>`;
+  const leg = `<div class="legend"><span><i style="background:${FYCOL[fy]}"></i>Daily sales</span>${req ? `<span><i class="dash"></i>Needed per working day (${fL(req)})</span>` : ''}<span class="muted">${chartUnit()} · dots mark Sundays</span></div>`;
   return { html: leg + `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily sales, ${mLabel(fy, m)}">${s}</svg>`,
     tip: k => { const d = +k, inv = new Set(rows.filter(r => r.dd === d).map(r => r.inv)).size; return `<b>${d} ${MON[m]}</b>` + tr(FYCOL[fy], 'Sales', fL(a[d])) + tr('', 'Invoices', inv) + (req ? tr('', 'vs needed', fP(pct(a[d], req))) : ''); } };
 }
@@ -543,7 +549,7 @@ function kpis(fy) {
   const invs = new Set(rows.map(r => r.inv)).size, custs = new Set(rows.map(r => r.cust)).size, parts = new Set(rows.map(r => r.part)).size;
   const first = rows.length ? Math.min(...rows.map(r => r.t)) : null;
   return `<section class="tiles">
-  <div class="tile hero"><span class="lbl">Sales · FY ${fy} to date</span><span class="val">${fLn(tot)}<small>₹ ${UNIT.s}</small></span>
+  <div class="tile hero"><span class="lbl">Sales · FY ${fy} to date</span><span class="val">${fLn(tot)}${uTag()}</span>
     <span class="foot">${fAlt(tot)} · ${first ? fD(first) + ' – ' + fD(c.asOfT) : 'no dispatches'}</span>
     ${annT ? `<div class="meter" title="Share of annual ABP"><i style="width:${Math.min(100, pct(tot, annT))}%"></i></div><span class="foot">${fP(pct(tot, annT))} of annual ABP ${fL(annT)}</span>` : ''}</div>
   <div class="tile"><span class="lbl">vs ABP to date</span><span class="val">${ytdT ? fP(pct(tot, ytdT)) : '–'}</span>
@@ -572,16 +578,16 @@ function monthKpis(fy, m) {
   const invs = new Set(rows.map(r => r.inv)).size, custs = new Set(rows.map(r => r.cust)).size;
   const lyLbl = mi.live ? `${MON[m]} 1–${mi.upto}, FY ${pf}` : `${MON[m]}, FY ${pf}`;
   return `<section class="tiles">
-  <div class="tile hero"><span class="lbl">${mLabel(fy, m)} · ${mi.live ? 'month to date' : 'full month'}</span><span class="val">${fLn(tot)}<small>₹ ${UNIT.s}</small></span>
+  <div class="tile hero"><span class="lbl">${mLabel(fy, m)} · ${mi.live ? 'month to date' : 'full month'}</span><span class="val">${fLn(tot)}${uTag()}</span>
     <span class="foot">${fAlt(tot)} · ${mi.live ? 'up to ' + mi.upto + ' ' + MON[m] : days + ' dispatch days'}</span>
     ${mT ? `<div class="meter"><i style="width:${Math.min(100, pct(tot, mT))}%"></i></div>` : ''}</div>
   <div class="tile"><span class="lbl">vs month target</span><span class="val">${mT ? fP(pct(tot, mT)) : '–'}</span>
     <span class="foot">${mT ? `${tot >= mT ? '<span class="chip up">Met</span>' : mi.live ? '<span class="chip mid">In progress</span>' : '<span class="chip dn">Missed</span>'} Target ${fL(mT)} · ${tot >= mT ? 'over by' : 'short by'} ${fL(Math.abs(tot - mT))}` : '<span class="muted">No target for this month</span>'}</span></div>
   <div class="tile"><span class="lbl">vs last year</span><span class="val" style="color:${ly ? (tot >= ly ? 'var(--good)' : 'var(--bad)') : 'inherit'}">${ly ? (tot >= ly ? '+' : '') + fP((tot / ly - 1) * 100) : '–'}</span>
     <span class="foot">${ly ? `${lyLbl}: ${fL(ly)}${mi.live ? ' · full month ' + fL(lyFull) : ''}` : '<span class="muted">No earlier year loaded</span>'}</span></div>
-  ${mi.live ? `<div class="tile"><span class="lbl">Asking rate</span><span class="val">${ask != null ? fLn(ask) + '<small>₹ ' + UNIT.s + '/day</small>' : '–'}</span>
+  ${mi.live ? `<div class="tile"><span class="lbl">Asking rate</span><span class="val">${ask != null ? fLn(ask) + uTag('/day') : '–'}</span>
     <span class="foot">${ask != null ? `${remWD} working days left · running at ${fL(avg)}/day` : mT && tot >= mT ? 'Month target met' : `Avg ${fL(avg)} per dispatch day`}</span></div>`
-  : `<div class="tile"><span class="lbl">Daily average</span><span class="val">${fLn(avg)}<small>₹ ${UNIT.s}/day</small></span>
+  : `<div class="tile"><span class="lbl">Daily average</span><span class="val">${fLn(avg)}${uTag('/day')}</span>
     <span class="foot">${best ? `Best day ${best} ${MON[m]}: ${fL(byDay[best])}` : 'No dispatches'}</span></div>`}
   ${qtyTile('Sales qty · ' + MON[m], rows, lyRows, mi.live ? 'vs same days LY' : 'vs ' + MON[m] + ' LY', qtgt(fy) ? qtgt(fy)[m] : null, 'month target')}
   </section>`;
@@ -596,7 +602,7 @@ function cumTiles(fy, m) {
   const span = 'Apr – ' + (mi.live ? mi.upto + ' ' : '') + MON[m];
   return `<div class="sec-hd" style="padding-top:6px;margin-top:0"><div><div class="eyebrow">Cumulative</div><h2 style="font-size:16px">${span} ${mi.y}</h2></div></div>
   <section class="tiles">
-  <div class="tile hero"><span class="lbl">Cumulative sales · ${span}</span><span class="val">${fLn(tot)}<small>₹ ${UNIT.s}</small></span>
+  <div class="tile hero"><span class="lbl">Cumulative sales · ${span}</span><span class="val">${fLn(tot)}${uTag()}</span>
     <span class="foot">${fAlt(tot)}${annT ? ' · ' + fP(pct(tot, annT)) + ' of annual ABP' : ''}</span>
     ${annT ? `<div class="meter"><i style="width:${Math.min(100, pct(tot, annT))}%"></i></div>` : ''}</div>
   <div class="tile"><span class="lbl">vs cumulative target</span><span class="val">${cT ? fP(pct(tot, cT)) : '–'}</span>
@@ -726,7 +732,7 @@ function dateTiles(fy, a, b) {
   const la = lyO(fy, a), lb = lyO(fy, b), lyRows = pf ? filt(pf).filter(r => r.o >= la && r.o <= lb) : null, ly = lyRows ? sum(lyRows) : null;
   const one = a === b, days = new Set(rows.map(r => r.o)).size, invs = new Set(rows.map(r => r.inv)).size, custs = new Set(rows.map(r => r.cust)).size;
   return `<section class="tiles">
-  <div class="tile hero"><span class="lbl">Sales · ${dLabel(fy, a, b)}</span><span class="val">${fLn(tot)}<small>₹ ${UNIT.s}</small></span>
+  <div class="tile hero"><span class="lbl">Sales · ${dLabel(fy, a, b)}</span><span class="val">${fLn(tot)}${uTag()}</span>
     <span class="foot">${fAlt(tot)} · ${one ? new Date(oT(fy, a)).toLocaleDateString('en-IN', { weekday: 'long', timeZone: 'UTC' }) : (b - a + 1) + ' days, ' + days + ' with dispatch'}</span></div>
   <div class="tile"><span class="lbl">vs ${one ? 'daily' : 'period'} target</span><span class="val">${tg ? fP(pct(tot, tg)) : '–'}</span>
     <span class="foot">${tg ? `${tot >= tg ? '<span class="chip up">Above</span>' : '<span class="chip dn">Below</span>'} Needed ${fL(tg)} · ${tot >= tg ? 'over by' : 'short by'} ${fL(Math.abs(tot - tg))}` : tg === 0 ? '<span class="muted">Sunday · no target</span>' : '<span class="muted">No target</span>'}</span></div>
@@ -745,9 +751,9 @@ function dateCum(fy, b) {
   const annT = T ? T.reduce((x, y) => x + (y || 0), 0) : null;
   return `<div class="sec-hd" style="padding-top:6px;margin-top:0"><div><div class="eyebrow">Cumulative up to ${fD(oT(fy, b))}</div><h2 style="font-size:16px">Month to date and year to date</h2></div></div>
   <section class="tiles">
-  <div class="tile hero"><span class="lbl">${MON[m]} 1 – ${dd} (MTD)</span><span class="val">${fLn(mtdV)}<small>₹ ${UNIT.s}</small></span>
+  <div class="tile hero"><span class="lbl">${MON[m]} 1 – ${dd} (MTD)</span><span class="val">${fLn(mtdV)}${uTag()}</span>
     <span class="foot">${mT ? chipA(pct(mtdV, mT)) + ' of pro-rata ' + fL(mT) : ''}${lyM ? ' ' + chipG((mtdV / lyM - 1) * 100) + ' vs LY' : ''}</span>${T && T[m] ? `<div class="meter"><i style="width:${Math.min(100, pct(mtdV, T[m]))}%"></i></div><span class="foot muted">${fP(pct(mtdV, T[m]))} of full-month target ${fL(T[m])}</span>` : ''}</div>
-  <div class="tile hero"><span class="lbl">Apr 1 – ${dd} ${MON[m]} (YTD)</span><span class="val">${fLn(ytdV)}<small>₹ ${UNIT.s}</small></span>
+  <div class="tile hero"><span class="lbl">Apr 1 – ${dd} ${MON[m]} (YTD)</span><span class="val">${fLn(ytdV)}${uTag()}</span>
     <span class="foot">${fAlt(ytdV)}${annT ? ' · ' + fP(pct(ytdV, annT)) + ' of annual ABP' : ''}</span>${annT ? `<div class="meter"><i style="width:${Math.min(100, pct(ytdV, annT))}%"></i></div>` : ''}</div>
   <div class="tile"><span class="lbl">YTD vs target</span><span class="val">${yT ? fP(pct(ytdV, yT)) : '–'}</span>
     <span class="foot">${yT ? `${ytdV >= yT ? '<span class="chip up">Ahead</span>' : '<span class="chip dn">Behind</span>'} Target ${fL(yT)} · ${ytdV >= yT ? 'ahead by' : 'short by'} ${fL(Math.abs(ytdV - yT))}` : '<span class="muted">No target</span>'}</span></div>
@@ -768,7 +774,7 @@ function rangeChart(fy, a, b) {
     if (i % step === 0 || i === n - 1) s += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${d.getUTCDate()} ${MON[fm(d.getUTCMonth())]}</text>`;
     s += `<rect data-tip="${i}" x="${pad.l + iw * i}" y="${pad.t}" width="${iw}" height="${H - pad.t - pad.b}" fill="transparent"/>`; }
   s += `<line class="axis" x1="${pad.l}" x2="${W - pad.r}" y1="${H - pad.b}" y2="${H - pad.b}"/>`;
-  return { html: `<div class="legend"><span><i style="background:${FYCOL[fy]}"></i>Daily sales</span>${tgt(fy) ? '<span><i class="dash"></i>Needed per working day</span>' : ''}<span class="muted">${UNIT.name}</span></div><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily sales, ${dLabel(fy, a, b)}">${s}</svg>`,
+  return { html: `<div class="legend"><span><i style="background:${FYCOL[fy]}"></i>Daily sales</span>${tgt(fy) ? '<span><i class="dash"></i>Needed per working day</span>' : ''}<span class="muted">${chartUnit()}</span></div><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily sales, ${dLabel(fy, a, b)}">${s}</svg>`,
     tip: k => { const i = +k, inv = new Set(rows.filter(r => r.o === a + i).map(r => r.inv)).size; return `<b>${fD(oT(fy, a + i))}</b>` + tr(FYCOL[fy], 'Sales', fL(v[i])) + tr('', 'Invoices', inv) + (req[i] ? tr('', 'vs needed', fP(pct(v[i], req[i]))) : ''); } };
 }
 function catTableP(fy, key, label, limit, pred, lyPred, lyH) {
@@ -837,12 +843,12 @@ function vMonthly() {
   const prevSP = pf ? byMonth(filt(pf, { upto: c.asOfO })) : null;
   const qs = [0, 1, 2, 3].map(q => { const a = cur.slice(q * 3, q * 3 + 3).reduce((x, y) => x + y, 0), t = T ? T.slice(q * 3, q * 3 + 3).reduce((x, y) => x + (y || 0), 0) : null, part = !c.closed && c.cm >= q * 3 && c.cm < q * 3 + 3, src = part ? prevSP : prev, p = src ? src.slice(q * 3, q * 3 + 3).reduce((x, y) => x + y, 0) : null; return { a, t, p, part, future: !c.closed && c.cm < q * 3 }; });
   $('#main').innerHTML = `<div class="view">
-  <section class="tiles">${qs.map((q, i) => `<div class="tile"><span class="lbl">Q${i + 1} · ${MON[i * 3]}–${MON[i * 3 + 2]}</span><span class="val">${q.a ? fLn(q.a) + '<small>₹ ' + UNIT.s + '</small>' : '–'}</span><span class="foot">${q.future ? (q.t ? 'Target ' + fL(q.t) : 'Not started') : `${q.t ? chipA(pct(q.a, q.t)) + ' of ' + fL(q.t) : ''} ${q.p && q.a ? chipG((q.a / q.p - 1) * 100) + (q.part ? ' vs LY same days' : ' vs LY') : ''}`}${q.part ? ' · in progress' : ''}</span></div>`).join('')}</section>
-  <section class="card"><div class="hd"><h2>Month-wise sales report · FY ${fy}</h2><span class="note">₹ Lakh${T ? '' : ' · set targets in the Targets tab'}</span><span class="sp"><button class="btn" id="csvMonth">Download CSV</button></span></div>
+  <section class="tiles">${qs.map((q, i) => `<div class="tile"><span class="lbl">Q${i + 1} · ${MON[i * 3]}–${MON[i * 3 + 2]}</span><span class="val">${q.a ? fLn(q.a) + uTag() : '–'}</span><span class="foot">${q.future ? (q.t ? 'Target ' + fL(q.t) : 'Not started') : `${q.t ? chipA(pct(q.a, q.t)) + ' of ' + fL(q.t) : ''} ${q.p && q.a ? chipG((q.a / q.p - 1) * 100) + (q.part ? ' vs LY same days' : ' vs LY') : ''}`}${q.part ? ' · in progress' : ''}</span></div>`).join('')}</section>
+  <section class="card"><div class="hd"><h2>Month-wise sales report · FY ${fy}</h2><span class="note">${UNIT.name}${T ? '' : ' · set targets in the Targets tab'}</span><span class="sp"><button class="btn" id="csvMonth">Download CSV</button></span></div>
   <div class="tbl-wrap"><table><thead><tr><th>Month</th><th class="n">ABP target</th><th class="n">Actual</th><th class="n">Achieved</th><th class="n">FY ${pf || '–'}</th><th class="n">Growth</th><th class="n">Cum. actual</th><th class="n">Cum. target</th><th class="n">Cum. ach.</th></tr></thead>
   <tbody>${body}</tbody><tfoot><tr><td>Total</td><td class="n">${annT ? fLn(annT) : '–'}</td><td class="n">${fLn(tot)}</td><td class="n">${annT ? fP(pct(tot, annT)) : ''}</td><td class="n">${prev ? fLn(prev.reduce((a, b) => a + b, 0)) : '–'}</td><td></td><td></td><td></td><td></td></tr></tfoot></table></div></section>
   ${qtyMonthTable(fy)}
-  <section class="card"><div class="hd"><h2>Product category by month</h2><span class="note">₹ Lakh · darker cells are larger</span></div>
+  <section class="card"><div class="hd"><h2>Product category by month</h2><span class="note">${UNIT.name} · darker cells are larger</span></div>
   <div class="tbl-wrap heat"><table><thead><tr><th>Category</th>${MON.map(m => `<th class="n">${m}</th>`).join('')}<th class="n">Total</th></tr></thead><tbody>${heat}</tbody></table></div></section>
   </div>`;
   $('#csvMonth').onclick = () => { const L2 = [['Month', 'ABP target', 'Actual', 'Achieved %', 'FY ' + (pf || ''), 'Growth %']]; for (let m = 0; m < 12; m++) L2.push([MON[m], T ? T[m] : '', cur[m].toFixed(2), T && T[m] ? (cur[m] / T[m] * 100).toFixed(1) : '', prev ? prev[m].toFixed(2) : '', prev && prev[m] ? ((cur[m] / prev[m] - 1) * 100).toFixed(1) : '']); download(`NMD_monthwise_${fy}.csv`, L2); };
@@ -858,7 +864,7 @@ function vCustomers() {
   FYS.forEach(f => key['y' + f] = o => o.y[f] || 0);
   const kf = key[S.cust.sort] || key.cur; list.sort((a, b) => { const x = kf(a), y = kf(b); return (x > y ? 1 : x < y ? -1 : 0) * S.cust.dir; });
   const th = (k, t, n) => `<th class="sort${n ? ' n' : ''}" data-s="${k}">${t}${S.cust.sort === k ? (S.cust.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
-  $('#main').innerHTML = `<div class="view"><section class="card"><div class="hd"><h2>Customers</h2><span class="note">Sales by financial year, ₹ Lakh · click a customer to see its invoices</span><span class="sp row"><input type="search" id="cq" placeholder="Search customer" value="${esc(S.cust.q)}" aria-label="Search customer"></span></div>
+  $('#main').innerHTML = `<div class="view"><section class="card"><div class="hd"><h2>Customers</h2><span class="note">Sales by financial year, ${UNIT.name} · click a customer to see its invoices</span><span class="sp row"><input type="search" id="cq" placeholder="Search customer" value="${esc(S.cust.q)}" aria-label="Search customer"></span></div>
   <div class="tbl-wrap"><table><thead><tr>${th('cust', 'Customer')}${th('cc', 'Group')}${FYS.slice().reverse().map(f => th('y' + f, 'FY ' + f, 1)).join('')}${th('cur', 'Share ' + S.fy, 1)}${th('g', 'Growth (same period)', 1)}</tr></thead>
   <tbody>${list.map(o => `<tr class="click" data-c="${esc(o.cust)}"><td class="wrap-t">${esc(o.cust)}</td><td>${esc(o.cc)}</td>${FYS.slice().reverse().map(f => `<td class="n${f === S.fy ? '' : ' muted'}">${o.y[f] ? (f === S.fy ? '<b>' + fLn(o.y[f]) + '</b>' : fLn(o.y[f])) : '–'}</td>`).join('')}<td class="n">${o.y[S.fy] ? fP(pct(o.y[S.fy], tot)) : '–'}</td><td class="n">${o.ytdLy ? chipG(((o.y[S.fy] || 0) / o.ytdLy - 1) * 100) : o.y[S.fy] ? '<span class="chip up">new</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">No customers match</td></tr>'}</tbody></table></div></section></div>`;
   $('#cq').oninput = e => { S.cust.q = e.target.value; const p = e.target.selectionStart; vCustomers(); const i = $('#cq'); i.focus(); i.setSelectionRange(p, p); };
@@ -876,8 +882,8 @@ function vProducts() {
   const sk = keys[P.sort] || keys.amt; list.sort((a, b) => { const x = sk(a), y = sk(b); return (x > y ? 1 : x < y ? -1 : 0) * P.dir; });
   const tot = list.reduce((a, o) => a + o.amt, 0), lyt = list.reduce((a, o) => a + o.ly, 0);
   const th = (k, t, n) => `<th class="sort${n ? ' n' : ''}" data-s="${k}">${t}${P.sort === k ? (P.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
-  const head = byCat ? th('k', 'Category') + th('qty', 'Qty', 1) + `<th class="n">Parts</th>` + th('amt', '₹ L', 1) + th('rate', 'Avg rate ₹', 1) + th('ly', 'LY same period', 1) + th('g', 'Growth', 1)
-    : th('k', 'Part') + th('desc', 'Description') + th('pc', 'Category') + th('qty', 'Qty', 1) + th('amt', '₹ L', 1) + th('rate', 'Avg rate ₹', 1) + th('ly', 'LY same period', 1) + th('g', 'Growth', 1);
+  const head = byCat ? th('k', 'Category') + th('qty', 'Qty', 1) + `<th class="n">Parts</th>` + th('amt', UNIT.name, 1) + th('rate', 'Avg rate ₹', 1) + th('ly', 'LY same period', 1) + th('g', 'Growth', 1)
+    : th('k', 'Part') + th('desc', 'Description') + th('pc', 'Category') + th('qty', 'Qty', 1) + th('amt', UNIT.name, 1) + th('rate', 'Avg rate ₹', 1) + th('ly', 'LY same period', 1) + th('g', 'Growth', 1);
   const row = o => byCat ? `<tr><td>${esc(o.k)}</td><td class="n">${fQ(o.qty)}</td><td class="n">${o.n.size}</td><td class="n"><b>${fLn(o.amt)}</b></td><td class="n">${o.qty ? nf2.format(o.amt / o.qty) : '–'}</td><td class="n muted">${o.ly ? fLn(o.ly) : '–'}</td><td class="n">${o.ly ? chipG((o.amt / o.ly - 1) * 100) : o.amt ? '<span class="chip up">new</span>' : ''}</td></tr>`
     : `<tr><td class="mono">${esc(o.part)}</td><td class="wrap-t">${esc(o.desc)}</td><td>${esc(o.pc)}</td><td class="n">${fQ(o.qty)}</td><td class="n"><b>${fLn(o.amt)}</b></td><td class="n">${o.qty ? nf2.format(o.amt / o.qty) : '–'}</td><td class="n muted">${o.ly ? fLn(o.ly) : '–'}</td><td class="n">${o.ly ? chipG((o.amt / o.ly - 1) * 100) : o.amt ? '<span class="chip up">new</span>' : '<span class="chip dn">stopped</span>'}</td></tr>`;
   $('#main').innerHTML = `<div class="view"><section class="card"><div class="hd"><h2>Products · FY ${S.fy} to date</h2><span class="note">${list.length} ${byCat ? 'categories' : 'parts'} · compared with FY ${pf || '–'} up to the same date</span>
@@ -904,7 +910,7 @@ function vInvoices() {
     return `<tr class="click" data-k="${esc(o.k)}"><td>${open ? '▾' : '▸'} ${fD(o.t)}</td><td class="mono">${esc(o.inv)}</td><td class="wrap-t">${esc(o.cust)}</td><td class="n">${o.lines.length}</td><td class="n">${fQ(o.qty)}</td><td class="n"><b>₹${nf0.format(o.amt)}</b></td></tr>` +
       (open ? o.lines.map(r => `<tr class="lines"><td></td><td class="mono">${esc(r.part)}</td><td class="wrap-t">${esc(r.desc)} <span class="muted">· ${esc(r.pc)}</span></td><td class="n">${r.qty ? nf2.format(r.amt / r.qty) : ''}</td><td class="n">${fQ(r.qty)}</td><td class="n">₹${nf0.format(r.amt)}</td></tr>`).join('') : ''); }).join('');
   $('#main').innerHTML = `<div class="view">
-  <section class="tiles"><div class="tile"><span class="lbl">Invoices shown</span><span class="val">${fQ(list.length)}</span><span class="foot">${fQ(rows.length)} lines</span></div><div class="tile"><span class="lbl">Value</span><span class="val">${fLn(tot)}<small>₹ ${UNIT.s}</small></span><span class="foot">₹${nf0.format(tot)}</span></div><div class="tile"><span class="lbl">Quantity</span><span class="val">${fQ(rows.reduce((a, r) => a + r.qty, 0))}</span><span class="foot">pieces / units as invoiced</span></div></section>
+  <section class="tiles"><div class="tile"><span class="lbl">Invoices shown</span><span class="val">${fQ(list.length)}</span><span class="foot">${fQ(rows.length)} lines</span></div><div class="tile"><span class="lbl">Value</span><span class="val">${fLn(tot)}${uTag()}</span><span class="foot">₹${nf0.format(tot)}</span></div><div class="tile"><span class="lbl">Quantity</span><span class="val">${fQ(rows.reduce((a, r) => a + r.qty, 0))}</span><span class="foot">pieces / units as invoiced</span></div></section>
   <section class="card"><div class="hd"><h2>Invoice register · FY ${S.fy}</h2><span class="note">Click an invoice to see its lines</span>
   <span class="sp row"><select id="im" aria-label="Month"><option value="all">All months</option>${MON.map((m, i) => `<option value="${i}" ${i === S.dm ? 'selected' : ''}>${m}</option>`).join('')}</select>
   <select id="ic" aria-label="Customer" style="max-width:240px"><option value="all">All customers</option>${custs.map(c => `<option ${c === I.cust ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
@@ -953,7 +959,7 @@ function vData() {
   $('#main').innerHTML = `<div class="view">
   <section class="card"><div class="hd"><h2>Data in this tracker</h2><span class="note">NMD - 65 only · basic value before tax, all customers</span></div>
   <div class="tbl-wrap"><table><thead><tr><th>Year</th><th>Source</th><th class="n">Lines</th><th>Dates</th><th class="n">Total</th><th></th></tr></thead><tbody>${rowsHtml}</tbody></table></div></section>
-  <section class="card"><div class="hd"><h2>Upload the latest invoice register</h2><span class="note">The OTD file (.xlsx) with an "Invoice Register" or "Dispatch Report" sheet</span></div>
+  <section class="card"><div class="hd"><h2>Upload the latest invoice register</h2><span class="note">The OTD file (.xlsx) with an "Invoice Register" or "Dispatch Report" sheet · app version 20-Nov-2026 units</span></div>
   <div class="grid32"><div style="display:grid;gap:12px">
   <label class="drop" id="drop" for="file"><b>Choose the OTD Excel file</b><br><span class="muted">or drop it here · the year is detected from invoice dates</span><input type="file" id="file" accept=".xlsx,.xlsm,.xls" hidden></label>
   <div id="up"></div></div>
@@ -1341,13 +1347,14 @@ function refreshAll(soft) {
   document.body.classList.toggle('signed-out', locked);
   if (locked) { hideTip(); if (!AUTH_READY) { $('#main').innerHTML = `<div class="empty" style="padding:80px 16px"><img src="${$('.brandlogo').src}" alt="" style="height:48px;margin:0 auto 14px;display:block">Opening the Sales Tracker…</div>`; } else if (FB_ON && !FB) { $('#main').innerHTML = `<div class="empty" style="padding:80px 16px;color:#fff">Could not start Firebase.<br><small>${esc(FB_ERR)}</small><br><small>Check firebase-config.js and your internet connection.</small></div>`; } else if (FB_ON && FB_SETUP) { if (!document.getElementById('suForm')) vSetup(); } else if (!(soft && document.getElementById('lgPass'))) vCover(); return; }
   if (soft && (S.view === 'targets' || S.view === 'users')) return; // don't wipe inputs being edited
-  UNIT = S.view === 'dashboard' ? CR : LK;
+  UNIT = UNITS[S.unit] || CR; document.body.classList.toggle('u-act', UNIT === AC); document.querySelectorAll('.useg [data-u]').forEach(b => b.setAttribute('aria-pressed', b.dataset.u === S.unit));
   saveUI(); buildFilters(); setPill(); hideTip(); VIEWS[S.view]();
   document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
 }
 function go(v) { if (!VIEWS[v] || ((v === 'data' || v === 'users') && AUTH_READY && !isAdmin())) v = 'dashboard'; S.view = v; document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.v === v)); try { history.replaceState(null, '', '#' + v); } catch (e) {} refreshAll(); window.scrollTo({ top: 0 }); }
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => go(b.dataset.v));
 $('#signOut').onclick = signOut;
+document.querySelectorAll('.useg [data-u]').forEach(b => b.onclick = () => { S.unit = b.dataset.u; try { localStorage.setItem('nmdSalesUnit', S.unit); } catch (e) {} refreshAll(); });
 S.view = ['data', 'users'].includes((location.hash || '').slice(1)) ? 'dashboard' : ((location.hash || '').slice(1) || 'dashboard'); if (!VIEWS[S.view]) S.view = 'dashboard';
 refreshAll();
 initStore().catch(() => {});
