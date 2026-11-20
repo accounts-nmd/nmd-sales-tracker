@@ -20,7 +20,7 @@
   --accent:#1f62c4; --accent-2:#2a78d6; --accent-bg:#eef4fd; --accent-line:#cfe0f7;
   --bg:#ffffff; --strip:#f7f9fc; --panel:#ffffff; --ink:#0f1a2b; --ink-2:#47536a; --ink-3:#7c879b;
   --line:#e4e9f0; --line-2:#eff2f7; --hover:#f5f8fd;
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --tgt:#0f1a2b;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --tgt:#0f1a2b;
   --good:#15804a; --good-bg:#e4f5eb; --warn:#9a6200; --warn-bg:#fcf1dc; --bad:#c03636; --bad-bg:#fce8e8;
   --heat:42,120,214;
   --f-display:"Sora","Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -352,13 +352,13 @@ body.signed-out .useg{display:none}
 <main class="wrap" id="main"></main>
 <div class="tip" id="tip" hidden></div>
 
-<script type="application/json" id="seed">{"2026-27":{"start":"2026-04-01","d":{"plant":[],"inv":[],"cust":[],"part":[],"pc":[],"cc":[]},"r":[],"src":"Not loaded yet \u2014 Admin: restore the backup file or upload the OTD Excel"},"2025-26":{"start":"2025-04-01","d":{"plant":[],"inv":[],"cust":[],"part":[],"pc":[],"cc":[]},"r":[],"src":"Not loaded yet \u2014 Admin: restore the backup file or upload the OTD Excel"},"2024-25":{"start":"2024-04-01","d":{"plant":[],"inv":[],"cust":[],"part":[],"pc":[],"cc":[]},"r":[],"src":"Not loaded yet \u2014 Admin: restore the backup file or upload the OTD Excel"},"_targets":{"2026-27":[null,null,null,null,null,null,null,null,null,null,null,null],"2025-26":[null,null,null,null,null,null,null,null,null,null,null,null],"2024-25":[null,null,null,null,null,null,null,null,null,null,null,null]}}</script>
+<script type="application/json" id="seed">{"2026-27":{"start":"2026-04-01","d":{"plant":[],"inv":[],"cust":[],"part":[],"pc":[],"cc":[]},"r":[],"src":"Not loaded yet \u2014 Admin: restore the backup file or upload the OTD Excel"},"2025-26":{"start":"2025-04-01","d":{"plant":[],"inv":[],"cust":[],"part":[],"pc":[],"cc":[]},"r":[],"src":"Not loaded yet \u2014 Admin: restore the backup file or upload the OTD Excel"},"2024-25":{"start":"2024-04-01","d":{"plant":[],"inv":[],"cust":[],"part":[],"pc":[],"cc":[]},"r":[],"src":"Not loaded yet \u2014 Admin: restore the backup file or upload the OTD Excel"},"2023-24":{"start":"2023-04-01","d":{"plant":[],"inv":[],"cust":[],"part":[],"pc":[],"cc":[]},"r":[],"src":"Not loaded yet \u2014 Admin: restore the backup file or upload the OTD Excel"},"_targets":{"2026-27":[null,null,null,null,null,null,null,null,null,null,null,null],"2025-26":[null,null,null,null,null,null,null,null,null,null,null,null],"2024-25":[null,null,null,null,null,null,null,null,null,null,null,null],"2023-24":[null,null,null,null,null,null,null,null,null,null,null,null]}}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 "use strict";
 const SEED = JSON.parse(document.getElementById('seed').textContent);
-const FYS = ['2026-27', '2025-26', '2024-25'];
-const FYCOL = { '2026-27': 'var(--s1)', '2025-26': 'var(--s2)', '2024-25': 'var(--s3)' };
+const FYS = ['2026-27', '2025-26', '2024-25', '2023-24'];
+const FYCOL = { '2026-27': 'var(--s1)', '2025-26': 'var(--s2)', '2024-25': 'var(--s3)', '2023-24': 'var(--s4)' };
 const MON = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
 // Lines that are not counted as sales (customer cat – product cat): Exceptional–OTHER, Exceptional–Exceptional, Export–Export
 const notSale = r => { const cc = String(r.cc).toUpperCase(), pc = String(r.pc).toUpperCase(); return (cc === 'EXCEPTIONAL' && (pc === 'OTHER' || pc === 'EXCEPTIONAL')) || (cc === 'EXPORT' && pc === 'EXPORT'); };
@@ -404,10 +404,10 @@ function setFY(fy, rows, meta) {
   let mx = -1; for (const r of rows) if (r.o > mx) mx = r.o; if (mx < 0) mx = 0;
   DATA[fy] = { rows, meta, asOfO: mx, asOfT: fyStart(fy) + mx * 864e5 };
 }
-const ABP = JSON.parse(JSON.stringify(SEED._targets)); const HAS_SEED = ['2026-27', '2025-26', '2024-25'].some(f => SEED[f].r.length);
+const ABP = JSON.parse(JSON.stringify(SEED._targets)); const HAS_SEED = FYS.some(f => SEED[f].r.length);
 let TARGETS = JSON.parse(JSON.stringify(ABP));
-const QTGT = {}; ['2026-27', '2025-26', '2024-25'].forEach(f => QTGT[f] = new Array(12).fill(null));
-function applyDefaultTargets() { const D = window.NMD_DEFAULTS; TARGETS = JSON.parse(JSON.stringify(ABP)); ['2026-27', '2025-26', '2024-25'].forEach(f => { QTGT[f] = new Array(12).fill(null); if (D && D.targets && Array.isArray(D.targets[f])) TARGETS[f] = D.targets[f].slice(); if (D && D.qty && Array.isArray(D.qty[f])) QTGT[f] = D.qty[f].slice(); }); }
+const QTGT = {}; FYS.forEach(f => QTGT[f] = new Array(12).fill(null));
+function applyDefaultTargets() { const D = window.NMD_DEFAULTS; TARGETS = JSON.parse(JSON.stringify(ABP)); FYS.forEach(f => { QTGT[f] = new Array(12).fill(null); if (D && D.targets && Array.isArray(D.targets[f])) TARGETS[f] = D.targets[f].slice(); if (D && D.qty && Array.isArray(D.qty[f])) QTGT[f] = D.qty[f].slice(); }); }
 applyDefaultTargets();
 
 let SAVED_UNIT = 'C'; try { SAVED_UNIT = ['L', 'C', 'A'].includes(localStorage.getItem('nmdSalesUnit')) ? localStorage.getItem('nmdSalesUnit') : 'C'; } catch (e) {}
@@ -433,7 +433,8 @@ function daysIn(fy, m) { const y = +fy.slice(0, 4) + (m >= 9 ? 1 : 0), mo = (m +
 function workDays(fy, m, fromDay, toDay) { const y = +fy.slice(0, 4) + (m >= 9 ? 1 : 0), mo = (m + 3) % 12; let n = 0; for (let d = fromDay; d <= toDay; d++) if (new Date(Date.UTC(y, mo, d)).getUTCDay() !== 0) n++; return n; }
 function ctx(fy) {
   const D = DATA[fy], aT = D.asOfT, ad = new Date(aT), cm = fm(ad.getUTCMonth()), dd = ad.getUTCDate(), dim = daysIn(fy, cm);
-  return { asOfO: D.asOfO, asOfT: aT, cm, dd, dim, closed: cm === 11 && dd === 31 };
+  const closed = cm === 11 && dd === 31;
+  return { asOfO: D.asOfO, lyUpto: closed ? 9999 : D.asOfO, asOfT: aT, cm, dd, dim, closed };
 }
 
 /* ---------- tooltip ---------- */
@@ -543,7 +544,7 @@ function dailyChart(fy, m, hl = null) {
 /* ---------- views ---------- */
 function kpis(fy) {
   const c = ctx(fy), pf = prevFY(fy), rows = filt(fy), tot = sum(rows), T = tgt(fy);
-  const ly = pf ? sum(filt(pf, { upto: c.asOfO })) : null;
+  const ly = pf ? sum(filt(pf, { upto: c.lyUpto })) : null;
   const annT = T ? T.reduce((a, b) => a + (b || 0), 0) : null;
   const ytdT = T ? T.slice(0, c.cm).reduce((a, b) => a + (b || 0), 0) + (T[c.cm] || 0) * (c.dd / c.dim) : null;
   const invs = new Set(rows.map(r => r.inv)).size, custs = new Set(rows.map(r => r.cust)).size, parts = new Set(rows.map(r => r.part)).size;
@@ -556,7 +557,7 @@ function kpis(fy) {
     <span class="foot">${ytdT ? `${tot >= ytdT ? '<span class="chip up">Ahead</span>' : '<span class="chip dn">Behind</span>'} Target ${fL(ytdT)} · ${tot >= ytdT ? 'ahead by' : 'short by'} ${fL(Math.abs(tot - ytdT))}` : '<span class="muted">' + (targetsOn() ? 'No target set for this year' : 'Targets apply when All customers is selected') + '</span>'}</span></div>
   <div class="tile"><span class="lbl">vs last year, same period</span><span class="val" style="color:${ly ? (tot >= ly ? 'var(--good)' : 'var(--bad)') : 'inherit'}">${ly ? (tot >= ly ? '+' : '') + fP((tot / ly - 1) * 100) : '–'}</span>
     <span class="foot">${ly ? `FY ${pf}: ${fL(ly)} · ${tot >= ly ? '+' : '−'}${fL(Math.abs(tot - ly))}` : '<span class="muted">No earlier year loaded</span>'}</span></div>
-  ${qtyTile('Sales qty · FY to date', rows, pf ? filt(pf, { upto: c.asOfO }) : null, 'vs same period LY', qtPro(fy, c.cm, c.dd / c.dim), 'target to date')}
+  ${qtyTile('Sales qty · FY to date', rows, pf ? filt(pf, { upto: c.lyUpto }) : null, 'vs same period LY', qtPro(fy, c.cm, c.dd / c.dim), 'target to date')}
   </section>`;
 }
 const qtyOf = rows => rows.reduce((a, r) => a + (r.pc === 'Scrap' ? 0 : r.qty), 0);
@@ -616,7 +617,7 @@ function cumTiles(fy, m) {
 function catTable(fy, key, label, limit = 12, m = null) {
   const c = ctx(fy), pf = prevFY(fy), mi = m == null ? null : mInfo(fy, m), o = key === 'cc' ? { noCC: true } : {};
   const rows = filt(fy, o).filter(r => m == null || r.m === m), tot = sum(rows), cur = groupSum(rows, key);
-  const lyR = !pf ? [] : m == null ? filt(pf, Object.assign({ upto: c.asOfO }, o)) : filt(pf, o).filter(r => r.m === m && (!mi.live || r.dd <= mi.upto));
+  const lyR = !pf ? [] : m == null ? filt(pf, Object.assign({ upto: c.lyUpto }, o)) : filt(pf, o).filter(r => r.m === m && (!mi.live || r.dd <= mi.upto));
   const ly = groupSum(lyR, key);
   const list = [...cur.entries()].sort((a, b) => b[1] - a[1]); const mx = list.length ? list[0][1] : 1;
   const shown = list.slice(0, limit), rest = list.slice(limit);
@@ -677,7 +678,7 @@ function vDashboard() {
     html = `<div class="view">${kpis(fy)}
   <div class="grid2">
     <section class="card" id="cA"><div class="hd"><h2>Month-wise sales</h2><span class="note">Click a month to open it</span></div>${A.html}</section>
-    <section class="card" id="cB"><div class="hd"><h2>Cumulative sales, three years</h2><span class="note">Where each year stood by month-end</span></div>${B.html}</section>
+    <section class="card" id="cB"><div class="hd"><h2>Cumulative sales by year</h2><span class="note">Where each year stood by month-end</span></div>${B.html}</section>
   </div>
   <div class="sec-hd" id="monthSec"><div><div class="eyebrow">${mi.live ? 'This month' : 'Last month of the year'}</div><h2>${mLabel(fy, m)}${mi.live ? ' <span class="chip mid">running</span>' : ''}</h2></div>${monthPicker(fy, null)}</div>
   ${monthKpis(fy, m)}
@@ -840,7 +841,7 @@ function vMonthly() {
   const cell = new Map(); let hmax = 0; for (const r of rows) { const k = r.pc + '|' + r.m; const v = (cell.get(k) || 0) + r.amt; cell.set(k, v); }
   for (const v of cell.values()) hmax = Math.max(hmax, v);
   const heat = cats.map(k => { let rt = 0; const tds = MON.map((_, m) => { const v = cell.get(k + '|' + m) || 0; rt += v; const a = v ? 0.1 + 0.75 * (v / hmax) : 0; return `<td class="n" style="background:rgba(var(--heat),${a.toFixed(2)});${a > .5 ? 'color:#fff' : ''}" title="${esc(k)} · ${MON[m]}: ${fL(v)}">${v ? fLn(v) : ''}</td>`; }).join(''); return `<tr><td>${esc(k)}</td>${tds}<td class="n"><b>${fLn(rt)}</b></td></tr>`; }).join('');
-  const prevSP = pf ? byMonth(filt(pf, { upto: c.asOfO })) : null;
+  const prevSP = pf ? byMonth(filt(pf, { upto: c.lyUpto })) : null;
   const qs = [0, 1, 2, 3].map(q => { const a = cur.slice(q * 3, q * 3 + 3).reduce((x, y) => x + y, 0), t = T ? T.slice(q * 3, q * 3 + 3).reduce((x, y) => x + (y || 0), 0) : null, part = !c.closed && c.cm >= q * 3 && c.cm < q * 3 + 3, src = part ? prevSP : prev, p = src ? src.slice(q * 3, q * 3 + 3).reduce((x, y) => x + y, 0) : null; return { a, t, p, part, future: !c.closed && c.cm < q * 3 }; });
   $('#main').innerHTML = `<div class="view">
   <section class="tiles">${qs.map((q, i) => `<div class="tile"><span class="lbl">Q${i + 1} · ${MON[i * 3]}–${MON[i * 3 + 2]}</span><span class="val">${q.a ? fLn(q.a) + uTag() : '–'}</span><span class="foot">${q.future ? (q.t ? 'Target ' + fL(q.t) : 'Not started') : `${q.t ? chipA(pct(q.a, q.t)) + ' of ' + fL(q.t) : ''} ${q.p && q.a ? chipG((q.a / q.p - 1) * 100) + (q.part ? ' vs LY same days' : ' vs LY') : ''}`}${q.part ? ' · in progress' : ''}</span></div>`).join('')}</section>
@@ -857,7 +858,7 @@ function vMonthly() {
 function vCustomers() {
   const c = ctx(S.fy), pf = prevFY(S.fy);
   const m = new Map(); const add = (fy, r, ytd) => { let o = m.get(r.cust); if (!o) { o = { cust: r.cust, cc: r.cc, y: {}, ytdLy: 0 }; m.set(r.cust, o); } o.y[fy] = (o.y[fy] || 0) + r.amt; if (ytd) o.ytdLy += r.amt; };
-  for (const fy of FYS) for (const r of filt(fy)) add(fy, r, fy === pf && r.o <= c.asOfO);
+  for (const fy of FYS) for (const r of filt(fy)) add(fy, r, fy === pf && r.o <= c.lyUpto);
   let list = [...m.values()]; const q = S.cust.q.toLowerCase(); if (q) list = list.filter(o => o.cust.toLowerCase().includes(q) || String(o.cc).toLowerCase().includes(q));
   const tot = sum(filt(S.fy));
   const key = { cust: o => o.cust, cc: o => o.cc, cur: o => o.y[S.fy] || 0, g: o => o.ytdLy ? (o.y[S.fy] || 0) / o.ytdLy : -1e9 };
@@ -876,7 +877,7 @@ function vProducts() {
   const c = ctx(S.fy), pf = prevFY(S.fy), P = S.prod, byCat = P.by === 'cat';
   const m = new Map(); const kf = r => byCat ? r.pc : r.part;
   for (const r of filt(S.fy)) { const k = kf(r); let o = m.get(k); if (!o) { o = { k, part: r.part, desc: r.desc, pc: r.pc, cc: r.cc, qty: 0, amt: 0, ly: 0, n: new Set() }; m.set(k, o); } o.qty += r.qty; o.amt += r.amt; o.n.add(r.part); }
-  if (pf) for (const r of filt(pf, { upto: c.asOfO })) { const k = kf(r); let o = m.get(k); if (!o) { o = { k, part: r.part, desc: r.desc, pc: r.pc, cc: r.cc, qty: 0, amt: 0, ly: 0, n: new Set() }; m.set(k, o); } o.ly += r.amt; }
+  if (pf) for (const r of filt(pf, { upto: c.lyUpto })) { const k = kf(r); let o = m.get(k); if (!o) { o = { k, part: r.part, desc: r.desc, pc: r.pc, cc: r.cc, qty: 0, amt: 0, ly: 0, n: new Set() }; m.set(k, o); } o.ly += r.amt; }
   let list = [...m.values()]; const q = P.q.toLowerCase(); if (q) list = list.filter(o => (o.part + ' ' + o.desc + ' ' + o.pc + ' ' + o.cc).toLowerCase().includes(q));
   const keys = { k: o => o.k, desc: o => o.desc, pc: o => o.pc, qty: o => o.qty, amt: o => o.amt, rate: o => o.qty ? o.amt / o.qty : 0, ly: o => o.ly, g: o => o.ly ? o.amt / o.ly : -1e9 };
   const sk = keys[P.sort] || keys.amt; list.sort((a, b) => { const x = sk(a), y = sk(b); return (x > y ? 1 : x < y ? -1 : 0) * P.dir; });
@@ -959,7 +960,7 @@ function vData() {
   $('#main').innerHTML = `<div class="view">
   <section class="card"><div class="hd"><h2>Data in this tracker</h2><span class="note">NMD - 65 only · basic value before tax, all customers</span></div>
   <div class="tbl-wrap"><table><thead><tr><th>Year</th><th>Source</th><th class="n">Lines</th><th>Dates</th><th class="n">Total</th><th></th></tr></thead><tbody>${rowsHtml}</tbody></table></div></section>
-  <section class="card"><div class="hd"><h2>Upload the latest invoice register</h2><span class="note">The OTD file (.xlsx) with an "Invoice Register" or "Dispatch Report" sheet · app version 20-Nov-2026 units</span></div>
+  <section class="card"><div class="hd"><h2>Upload the latest invoice register</h2><span class="note">The OTD file (.xlsx) with an "Invoice Register" or "Dispatch Report" sheet · app version 20-Nov-2026 FY23-24</span></div>
   <div class="grid32"><div style="display:grid;gap:12px">
   <label class="drop" id="drop" for="file"><b>Choose the OTD Excel file</b><br><span class="muted">or drop it here · the year is detected from invoice dates</span><input type="file" id="file" accept=".xlsx,.xlsm,.xls" hidden></label>
   <div id="up"></div></div>
@@ -1003,7 +1004,10 @@ function readFile(file) {
 function parseWorkbook(wb, fname) {
   const pick = wb.SheetNames.find(n => /invoice\s*register/i.test(n)) || wb.SheetNames.find(n => /dispatch\s*report/i.test(n));
   if (!pick) throw new Error('No sheet named "Invoice Register" or "Dispatch Report" was found in ' + fname + '.');
-  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[pick], { header: 1, raw: true, defval: null });
+  const ws = wb.Sheets[pick];
+  { let mr = -1, mc = -1; for (const k in ws) { if (k[0] === '!') continue; const c = ws[k]; if (c == null || c.v == null || c.v === '') continue; const a = XLSX.utils.decode_cell(k); if (a.r > mr) mr = a.r; if (a.c > mc) mc = a.c; }
+    if (mr >= 0) ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: mr, c: mc } }); }
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: false });
   const norm = s => String(s ?? '').toLowerCase().replace(/[^a-z]/g, '');
   let hr = -1; for (let i = 0; i < Math.min(10, aoa.length); i++) { const h = (aoa[i] || []).map(norm); if (h.some(x => x.startsWith('invoiceno')) && h.some(x => x === 'invoicedate')) { hr = i; break; } }
   if (hr < 0) throw new Error('Could not find the header row (needs "Invoice No." and "Invoice Date") in sheet ' + pick + '.');
@@ -1102,7 +1106,7 @@ function vCover() {
     <p class="cover-sub">Daily, monthly and yearly sales against ABP targets and last year, in value and quantity.</p>
     <div class="cv-chart"${DATA['2026-27'].rows.length ? '' : ' hidden'}><svg viewBox="0 0 380 160" role="img" aria-label="FY 2026-27 monthly sales shape">${bars}<polyline class="cl" points="${pts}"/></svg><div class="cv-months">${MON.map(m => `<span>${m[0]}</span>`).join('')}</div></div>
     <div class="cv-chips">${['Year', 'Month', 'Date', 'vs ABP', 'vs Last year', 'Quantity'].map(x => `<span>${x}</span>`).join('')}</div>
-    <dl class="cover-meta"><div><dt>Years</dt><dd>FY 24-25 to 26-27</dd></div><div><dt>Data up to</dt><dd>${DATA['2026-27'].rows.length ? fD(c.asOfT) : 'After sign-in'}</dd></div><div><dt>Plant</dt><dd>NMD - 65</dd></div></dl>
+    <dl class="cover-meta"><div><dt>Years</dt><dd>FY 23-24 to 26-27</dd></div><div><dt>Data up to</dt><dd>${DATA['2026-27'].rows.length ? fD(c.asOfT) : 'After sign-in'}</dd></div><div><dt>Plant</dt><dd>NMD - 65</dd></div></dl>
   </div>
   <div class="cover-r"><form class="signin" id="lgForm" autocomplete="off">
     <img class="cv-mlogo" src="${$('.brandlogo').src}" alt="NMD">
